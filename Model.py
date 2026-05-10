@@ -62,7 +62,7 @@ class Net(nn.Module):
     for epoch in range(2): #loop over dataset multiple times
 
         running_loss = 0.0
-        for i, data in enumerate(trainloader, 0)
+        for i, data in enumerate(trainloader, 0):
             #get the inputs, data is a list of [inputs, labels]
             inputs, labels = data
 
@@ -92,3 +92,55 @@ images, labels = next(dataiter)
 # print images
 imshow(torchvision.utils.make_grid(images))
 print('GroundTruth: ', ' '.join(f'{classes[labels[j]]:5s}' for j in range(4)))
+
+#load in the saved model
+net = Net()
+net.load_state_dict(torch.load(PATH, weights_only=True))
+
+#see what the model thinks the images are
+outputs = net(images)
+
+_, predicted = torch.max(outputs, 1)
+
+#index of highest energy for class, high energy means model thinks this particular image belongs to particular clas
+print('Predicted: ' , ' '.join(f'{classes[predicted[j]]:5s}'
+                               for j in range(4)))
+
+correct = 0 
+total = 0 
+#since we're not training, we dont need to calculate the gradients for our outputs
+with torch.no_grad():
+     for data in testloader:
+          images, labels = data
+          #we'll run images through network to calculate outputs
+          outputs = net(images)
+          #we choose class with highest energy as the prediction
+          _, predicted = torch.max(outputs, 1)
+          total += labels.size(0)
+          correct += (predicted == labels).sum().item()
+
+print(f'Accuracy of the network on the 1000 test images: {100 * correct // total} %')
+
+#lets see which classes performed well and which didnt
+# prepare to count predictions for each class
+correct_pred = {classname: 0 for classname in classes}
+total_pred = {classname: 0 for classname in classes}
+
+# again no gradients needed
+with torch.no_grad():
+    for data in testloader:
+        images, labels = data
+        outputs = net(images)
+        _, predictions = torch.max(outputs, 1)
+        # collect the correct predictions for each class
+        for label, prediction in zip(labels, predictions):
+            if label == prediction:
+                correct_pred[classes[label]] += 1
+            total_pred[classes[label]] += 1
+
+
+# print accuracy for each class
+for classname, correct_count in correct_pred.items():
+    accuracy = 100 * float(correct_count) / total_pred[classname]
+    print(f'Accuracy for class: {classname:5s} is {accuracy:.1f} %')
+
