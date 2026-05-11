@@ -4,6 +4,8 @@ import torchvision.transforms as transforms
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+import matplotlib.pyplot as plt
+import numpy as np
 
 #converting images to tensors
 #normalizing images to 0.5 mean and 0.5 standard deviation for RGB channels 
@@ -20,20 +22,39 @@ trainset = torchvision.datasets.CIFAR10(root='./data', train=True,
                                         download=True, transform=transform)
 #iterating through dataset in batches of 4, shuffling examples
 trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,
-                                          shuffle=True, num_workers=2)
+                                          shuffle=True, num_workers=0)
 #test data the model never sees during training, we check to see if it learns
 #notice train=False
 testset = torchvision.datasets.CIFAR10(root='./data', train=False,
                                        download=True, transform=transform)
 testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size,
-                                         shuffle=False, num_workers=2)
+                                         shuffle=False, num_workers=0)
 
 #labels
 classes = ('plane', 'car', 'bird', 'cat',
            'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
 
+# functions to show an image
+
+
+def imshow(img):
+    img = img / 2 + 0.5     # unnormalize
+    npimg = img.numpy()
+    plt.imshow(np.transpose(npimg, (1, 2, 0)))
+    plt.show()
+
+
+# get some random training images
+dataiter = iter(trainloader)
+images, labels = next(dataiter)
+
+# show images
+imshow(torchvision.utils.make_grid(images))
+# print labels
+print(' '.join(f'{classes[labels[j]]:5s}' for j in range(batch_size)))
+
 class Net(nn.Module):
-    def _init_(self):
+    def __init__(self):
         super().__init__()
         self.conv1 = nn.Conv2d(3, 6, 5)
         self.pool = nn.MaxPool2d(2, 2)
@@ -52,34 +73,34 @@ class Net(nn.Module):
         x = self.fc3(x)
         return x
     
-    net = Net()
+net = Net()
 
-    criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(net.parameters(), lr = 0.001, momentum = 0.9)
+criterion = nn.CrossEntropyLoss()
+optimizer = optim.SGD(net.parameters(), lr = 0.001, momentum = 0.9)
 
     #train the Network
     #loop over data iterator, feed input to network then optimize
-    for epoch in range(2): #loop over dataset multiple times
+for epoch in range(2): #loop over dataset multiple times
 
-        running_loss = 0.0
-        for i, data in enumerate(trainloader, 0):
-            #get the inputs, data is a list of [inputs, labels]
-            inputs, labels = data
+    running_loss = 0.0
+    for i, data in enumerate(trainloader, 0):
+        #get the inputs, data is a list of [inputs, labels]
+        inputs, labels = data
 
-            #zero the parameter gradients
-            optimizer.zero_grad()
+        #zero the parameter gradients
+        optimizer.zero_grad()
 
-            #forward + backward + optimize
-            outputs = net(inputs)
-            loss = criterion(outputs, labels)
-            loss.backward()
-            optimizer.step()
+        #forward + backward + optimize
+        outputs = net(inputs)
+        loss = criterion(outputs, labels)
+        loss.backward()
+        optimizer.step()
 
-            #print stats
-            running_loss += loss.item()
-            if i % 2000 == 1999:    #print every 2000 mini-batches
-                    print(f'[{epoch + 1}, {i + 1:5d}] loss: {running_loss / 2000:.3f}')
-                    running_loss = 0.0
+        #print stats
+        running_loss += loss.item()
+        if i % 2000 == 1999:    #print every 2000 mini-batches
+                print(f'[{epoch + 1}, {i + 1:5d}] loss: {running_loss / 2000:.3f}')
+                running_loss = 0.0
 
     print('Finished Training')
 
@@ -144,3 +165,10 @@ for classname, correct_count in correct_pred.items():
     accuracy = 100 * float(correct_count) / total_pred[classname]
     print(f'Accuracy for class: {classname:5s} is {accuracy:.1f} %')
 
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+
+print(device)
+
+net.to(device)
+
+inputs, labels = data[0].to(device), data[1].to(device)
